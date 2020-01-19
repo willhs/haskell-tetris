@@ -51,7 +51,10 @@ player_touched_brick (Player (Point row col)) board =
 update_board :: [[Bool]] -> Player -> [[Bool]]
 update_board board (Player (Point row col)) =
     let target_row = board!!row
-        updated_row = (take col target_row) ++ [True] ++ (drop (col+1) target_row)
+        row_with_player = (take col target_row) ++ [True] ++ (drop (col+1) target_row)
+        updated_row = if all (\pixel -> pixel) row_with_player
+            then replicate rows False
+            else row_with_player
     in (take row board) ++ [updated_row] ++ (drop (row+1) board)
 
 render_board :: [[Bool]] -> Player -> [[Bool]]
