@@ -7,8 +7,18 @@ data Action = Left | Right | Up | Down | None
 data Point = Point Int Int deriving (Show)
 data Player = Player Point deriving (Show)
 
-init_board = replicate rows ( replicate cols False )
+shape_l = [ [True, True, True, True] ]
+shape_cap_l = [ [ True ],
+                [ True, True, True, True] ]
+shape_s = [ [False, False, True,  True],
+            [True,  True,  False, False] ]
+shape_box = [ [True, True],
+              [True, True] ]
+shape_base = [ [False, True, False],
+               [True,  True, True] ]
+shapes = [ shape_l, shape_cap_l, shape_s, shape_box, shape_base ]
 
+init_board = replicate rows ( replicate cols False )
 init_player = Player (Point 0 (div cols 2))
 
 main = do
