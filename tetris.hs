@@ -5,7 +5,7 @@ cols = 5
 
 data Action = Left | Right | Up | Down | None
 data Point = Point Int Int deriving (Show)
-data Player = Player Point deriving (Show)
+data Player = Player Point [[Bool]] deriving (Show)
 
 shape_l = [ [True, True, True, True] ]
 shape_cap_l = [ [ True ],
@@ -19,7 +19,7 @@ shape_base = [ [False, True, False],
 shapes = [ shape_l, shape_cap_l, shape_s, shape_box, shape_base ]
 
 init_board = replicate rows ( replicate cols False )
-init_player = Player (Point 0 (div cols 2))
+init_player = Player (Point 0 (div cols 2)) shape_l
 
 main = do
     print "starting game"
@@ -41,7 +41,10 @@ game_tick board player = do
 game_update :: [[Bool]] -> Player -> ([[Bool]], Player)
 game_update board player
     | player_collision board player =
-        let updated_board = update_board board player
+        let player_board = render_board board player
+            updated_board = if (is_any_row_complete player_board)
+                                then scroll_board_down player_board
+                                else player_board
             new_player = init_player
         in (updated_board, new_player)
     | otherwise = (board, player)
@@ -51,29 +54,39 @@ player_collision board player =
     (player_touched_bottom player board) || (player_touched_brick player board)
 
 player_touched_bottom :: Player -> [[Bool]] -> Bool
-player_touched_bottom (Player (Point row _)) board = (row+1) == (length board)
+player_touched_bottom (Player (Point row _) shape) board =
+    let shape_height = length shape
+    in (row + shape_height) == (length board)
 
 player_touched_brick :: Player -> [[Bool]] -> Bool
-player_touched_brick (Player (Point row col)) board =
+player_touched_brick (Player (Point row col) _) board =
     let target_row = board!!(row+1)
     in target_row!!col
 
-update_board :: [[Bool]] -> Player -> [[Bool]]
-update_board board (Player (Point row col)) =
-    let target_row = board!!row
-        row_with_player = (take col target_row) ++ [True] ++ (drop (col+1) target_row)
-        updated_row = if all (\pixel -> pixel) row_with_player
-            then replicate rows False
-            else row_with_player
-    in (take row board) ++ [updated_row] ++ (drop (row+1) board)
-
 render_board :: [[Bool]] -> Player -> [[Bool]]
 render_board board player =
-    [[set_pixel col coli rowi player | (col, coli) <- zip row [0..]] | (row, rowi) <- zip board [0..]]
+    [render_row row rowi player | (row, rowi) <- zip board [0..]]
 
-set_pixel :: Bool -> Int -> Int -> Player -> Bool
-set_pixel col coli rowi (Player (Point player_row player_col)) =
-    if rowi == player_row && coli == player_col then True else col
+render_row :: [Bool] -> Int -> Player -> [Bool]
+render_row row rowi player =
+    [render_pixel col coli rowi player | (col, coli) <- zip row [0..]]
+
+render_pixel :: Bool -> Int -> Int -> Player -> Bool
+render_pixel col coli rowi (Player (Point player_row player_col) shape)
+    | in_shape_bounds = col || ((shape!!(rowi - player_row))!!(coli - player_col))
+    | otherwise = col
+    where in_shape_bounds = rowi >= player_row && rowi < player_row + (length shape)
+                         && coli >= player_col && coli < player_col + (length (shape!!0))
+
+is_any_row_complete :: [[Bool]] -> Bool
+is_any_row_complete board = any (\row -> all (==True) row) board
+
+scroll_board_down :: [[Bool]] -> [[Bool]]
+scroll_board_down board =
+    map (\(row, i) -> if i == 0
+                    then (replicate cols False)
+                    else board!!(i-1))
+                    (zip board [0..])
 
 parse_action :: String -> Action
 parse_action "s" = Main.Left
@@ -83,10 +96,10 @@ parse_action "d" = Main.Down
 parse_action str = None
 
 move_player :: Player -> Action -> Player
-move_player (Player (Point row col)) Main.Left = Player (Point row (col-1))
-move_player (Player (Point row col)) Main.Right = Player (Point row (col+1))
-move_player (Player (Point row col)) Main.Up = Player (Point (row-1) col)
-move_player (Player (Point row col)) Main.Down = Player (Point (row+1) col)
+move_player (Player (Point row col) shape) Main.Left = Player (Point row (col-1)) shape
+move_player (Player (Point row col) shape) Main.Right = Player (Point row (col+1)) shape
+move_player (Player (Point row col) shape) Main.Up = Player (Point (row-1) col) shape
+move_player (Player (Point row col) shape) Main.Down = Player (Point (row+1) col) shape
 move_player player None = player
 
 display_board :: [[Bool]] -> String
