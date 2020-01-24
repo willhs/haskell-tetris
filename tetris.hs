@@ -1,11 +1,15 @@
+-- todo
+-- rotate shapes
+-- shape brick collision
+
 import Control.Concurrent
 
 rows = 5
 cols = 5
 
 data Action = Left | Right | Up | Down | None
-data Point = Point Int Int deriving (Show)
-data Player = Player Point [[Bool]] deriving (Show)
+data Point = Point Int Int deriving Show
+data Player = Player Point [[Bool]] deriving Show
 
 shape_l = [ [True, True, True, True] ]
 shape_cap_l = [ [ True ],
@@ -43,25 +47,31 @@ game_update board player
     | player_collision board player =
         let player_board = render_board board player
             updated_board = if (is_any_row_complete player_board)
-                                then scroll_board_down player_board
-                                else player_board
+                            then scroll_board_down player_board
+                            else player_board
             new_player = init_player
         in (updated_board, new_player)
     | otherwise = (board, player)
 
 player_collision :: [[Bool]] -> Player -> Bool
 player_collision board player =
-    (player_touched_bottom player board) || (player_touched_brick player board)
+    (player_touched_bottom player board) || (player_landed_on_brick player board)
 
 player_touched_bottom :: Player -> [[Bool]] -> Bool
 player_touched_bottom (Player (Point row _) shape) board =
     let shape_height = length shape
     in (row + shape_height) == (length board)
 
-player_touched_brick :: Player -> [[Bool]] -> Bool
-player_touched_brick (Player (Point row col) _) board =
-    let target_row = board!!(row+1)
-    in target_row!!col
+player_landed_on_brick :: Player -> [[Bool]] -> Bool
+player_landed_on_brick (Player player_point shape) board =
+    any (\(row, rowi) -> is_brick_below_shape_row shape row rowi player_point board) (zip board [0..])
+
+is_brick_below_shape_row :: [[Bool]] -> [Bool] -> Int -> Point -> [[Bool]] -> Bool
+is_brick_below_shape_row shape row rowi (Point player_row player_col) board =
+    any (\(pixel, coli) -> if pixel
+                            then (board!!(player_row+rowi+1))!!(player_col+coli)
+                            else False
+        ) (zip row [0..])
 
 render_board :: [[Bool]] -> Player -> [[Bool]]
 render_board board player =
