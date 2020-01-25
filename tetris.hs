@@ -23,7 +23,7 @@ shape_base = [ [False, True, False],
 shapes = [ shape_l, shape_cap_l, shape_s, shape_box, shape_base ]
 
 init_board = replicate rows ( replicate cols False )
-init_player = Player (Point 0 (div cols 2)) shape_l
+init_player = Player (Point 0 0) shape_l
 
 main = do
     print "starting game"
@@ -33,9 +33,11 @@ game_tick board player = do
     action_str <- getLine
     let action = parse_action action_str
     let moved_player = move_player player action
-    --putStrLn ("moved player " ++ (show moved_player))
+
+    putStrLn ("moved player " ++ (show moved_player))
 
     let (updated_board, updated_player) = game_update board moved_player
+    putStrLn ("updated player " ++ (show updated_player))
 
     let rendered_board = render_board updated_board updated_player
     putStrLn (display_board rendered_board)
@@ -64,10 +66,10 @@ player_touched_bottom (Player (Point row _) shape) board =
 
 player_landed_on_brick :: Player -> [[Bool]] -> Bool
 player_landed_on_brick (Player player_point shape) board =
-    any (\(row, rowi) -> is_brick_below_shape_row shape row rowi player_point board) (zip board [0..])
+    any (\(row, rowi) -> is_brick_below_shape_row row rowi player_point board) (zip shape [0..])
 
-is_brick_below_shape_row :: [[Bool]] -> [Bool] -> Int -> Point -> [[Bool]] -> Bool
-is_brick_below_shape_row shape row rowi (Point player_row player_col) board =
+is_brick_below_shape_row :: [Bool] -> Int -> Point -> [[Bool]] -> Bool
+is_brick_below_shape_row row rowi (Point player_row player_col) board =
     any (\(pixel, coli) -> if pixel
                             then (board!!(player_row+rowi+1))!!(player_col+coli)
                             else False
