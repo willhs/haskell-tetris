@@ -1,21 +1,23 @@
--- todo
+-- todo:
 -- rotate shapes
--- shape brick collision
+-- prevent shapes leaving board
+-- shapes constantly fall
 
 import Control.Concurrent
+import System.Random
 
 rows = 5
-cols = 5
+cols = 8
 
 data Action = Left | Right | Up | Down | None
 data Point = Point Int Int deriving Show
 data Player = Player Point [[Bool]] deriving Show
 
 shape_l = [ [True, True, True, True] ]
-shape_cap_l = [ [ True ],
+shape_cap_l = [ [ True, False, False, False],
                 [ True, True, True, True] ]
-shape_s = [ [False, False, True,  True],
-            [True,  True,  False, False] ]
+shape_s = [ [False, True, True ],
+            [True,  True,  False ] ]
 shape_box = [ [True, True],
               [True, True] ]
 shape_base = [ [False, True, False],
@@ -23,35 +25,41 @@ shape_base = [ [False, True, False],
 shapes = [ shape_l, shape_cap_l, shape_s, shape_box, shape_base ]
 
 init_board = replicate rows ( replicate cols False )
-init_player = Player (Point 0 0) shape_l
+init_player random_gen =
+    let shape = shapes!!(fst $ randomR (0, length shapes - 1) random_gen)
+    in Player (Point 0 0) shape
 
 main = do
     print "starting game"
-    game_tick init_board init_player
+    random_gen <- getStdGen
+    let player = init_player random_gen
+    game_tick init_board player
 
 game_tick board player = do
+
+    let rendered_board = render_board board player
+    putStrLn (display_board rendered_board)
+
     action_str <- getLine
     let action = parse_action action_str
     let moved_player = move_player player action
 
-    putStrLn ("moved player " ++ (show moved_player))
+    random_gen <- newStdGen
+    let (updated_board, updated_player) = game_update board moved_player random_gen
 
-    let (updated_board, updated_player) = game_update board moved_player
-    putStrLn ("updated player " ++ (show updated_player))
+    if is_game_over board updated_player then do
+        putStrLn "game over man"
+    else do
+        game_tick updated_board updated_player
 
-    let rendered_board = render_board updated_board updated_player
-    putStrLn (display_board rendered_board)
-
-    game_tick updated_board updated_player
-
-game_update :: [[Bool]] -> Player -> ([[Bool]], Player)
-game_update board player
+game_update :: [[Bool]] -> Player -> StdGen -> ([[Bool]], Player)
+game_update board player random_gen
     | player_collision board player =
         let player_board = render_board board player
             updated_board = if (is_any_row_complete player_board)
                             then scroll_board_down player_board
                             else player_board
-            new_player = init_player
+            new_player = init_player random_gen
         in (updated_board, new_player)
     | otherwise = (board, player)
 
@@ -115,4 +123,18 @@ move_player (Player (Point row col) shape) Main.Down = Player (Point (row+1) col
 move_player player None = player
 
 display_board :: [[Bool]] -> String
-display_board board = foldl (\acc row -> acc ++ "\n" ++ (show row)) "" board
+display_board board = foldl (\acc row -> acc ++ "\n" ++ (draw_row row)) "" board
+
+draw_row :: [Bool] -> String
+draw_row row = foldl (\row pixel -> row ++ (if pixel == True then "O" else ".")) "" row
+
+is_game_over :: [[Bool]] -> Player -> Bool
+is_game_over board (Player player_point shape) =
+    any (\(row, rowi) -> is_player_on_brick row rowi player_point board) (zip shape [0..])
+
+is_player_on_brick :: [Bool] -> Int -> Point -> [[Bool]] -> Bool
+is_player_on_brick row rowi (Point player_row player_col) board =
+    any (\(pixel, coli) -> if pixel
+                            then (board!!(player_row+rowi))!!(player_col+coli)
+                            else False
+        ) (zip row [0..])
