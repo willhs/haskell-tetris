@@ -11,149 +11,149 @@ data Action = Left | Right | Up | Down | Rotate | None deriving Eq
 data Point = Point Int Int deriving Show
 data Player = Player Point [[Bool]] deriving Show
 
-shape_l = [ [True, True, True] ]
-shape_cap_l = [ [ True, False, False],
+shapeL = [ [True, True, True, True] ]
+shapeCapL = [ [ True, False, False],
                 [ True, True, True, True] ]
-shape_s = [ [False, True, True ],
+shapeS = [ [False, True, True ],
             [True,  True,  False ] ]
-shape_box = [ [True, True],
+shapeBox = [ [True, True],
               [True, True] ]
-shape_base = [ [False, True, False],
+shapeBase = [ [False, True, False],
                [True,  True, True] ]
-shapes = [ shape_l, shape_cap_l, shape_s, shape_box, shape_base ]
+shapes = [ shapeL, shapeCapL, shapeS, shapeBox, shapeBase ]
 
-init_board = replicate rows ( replicate cols False )
-init_player random_gen =
-    let shape = shapes!!(fst $ randomR (0, length shapes - 1) random_gen)
+initBoard = replicate rows ( replicate cols False )
+initPlayer randomGen =
+    let shape = shapes!!(fst $ randomR (0, length shapes - 1) randomGen)
     in Player (Point 0 0) shape
 
 main = do
     print "starting game"
-    random_gen <- getStdGen
-    let player = init_player random_gen
-    game_tick init_board player
+    randomGen <- getStdGen
+    let player = initPlayer randomGen
+    gameTick initBoard player
 
-game_tick board player = do
+gameTick board player = do
 
-    let rendered_board = render_board board player
-    putStrLn (display_board rendered_board)
+    let renderedBoard = renderBoard board player
+    putStrLn (displayBoard renderedBoard)
 
-    action_str <- getLine
-    let action = parse_action action_str
-    let moved_player = move_player player action board
+    actionStr <- getLine
+    let action = parseAction actionStr
+    let movedPlayer = movePlayer player action board
 
-    random_gen <- newStdGen
-    let (updated_board, updated_player) = game_update board moved_player random_gen
+    randomGen <- newStdGen
+    let (updatedBoard, updatedPlayer) = gameUpdate board movedPlayer randomGen
 
-    if is_player_on_brick board updated_player then do
+    if isPlayerOnBrick board updatedPlayer then do
         putStrLn "game over man"
     else do
-        game_tick updated_board updated_player
+        gameTick updatedBoard updatedPlayer
 
-game_update :: [[Bool]] -> Player -> StdGen -> ([[Bool]], Player)
-game_update board player random_gen
-    | player_collision board player =
-        let player_board = render_board board player
-            updated_board = if (is_any_row_complete player_board)
-                            then scroll_board_down player_board
-                            else player_board
-            new_player = init_player random_gen
-        in (updated_board, new_player)
+gameUpdate :: [[Bool]] -> Player -> StdGen -> ([[Bool]], Player)
+gameUpdate board player randomGen
+    | playerCollision board player =
+        let playerBoard = renderBoard board player
+            updatedBoard = if (isAnyRowComplete playerBoard)
+                            then scrollBoardDown playerBoard
+                            else playerBoard
+            newPlayer = initPlayer randomGen
+        in (updatedBoard, newPlayer)
     | otherwise = (board, player)
 
-player_collision :: [[Bool]] -> Player -> Bool
-player_collision board player =
-    (player_touched_bottom player board) || (player_landed_on_brick player board)
+playerCollision :: [[Bool]] -> Player -> Bool
+playerCollision board player =
+    (playerTouchedBottom player board) || (playerLandedOnBrick player board)
 
-player_touched_bottom :: Player -> [[Bool]] -> Bool
-player_touched_bottom (Player (Point row _) shape) board =
-    let shape_height = length shape
-    in (row + shape_height) == (length board)
+playerTouchedBottom :: Player -> [[Bool]] -> Bool
+playerTouchedBottom (Player (Point row _) shape) board =
+    let shapeHeight = length shape
+    in (row + shapeHeight) == (length board)
 
-player_landed_on_brick :: Player -> [[Bool]] -> Bool
-player_landed_on_brick (Player player_point shape) board =
-    any (\(row, rowi) -> is_brick_below_shape_row row rowi player_point board) (zip shape [0..])
+playerLandedOnBrick :: Player -> [[Bool]] -> Bool
+playerLandedOnBrick (Player playerPoint shape) board =
+    any (\(row, rowi) -> isBrickBelowShapeRow row rowi playerPoint board) (zip shape [0..])
 
-is_brick_below_shape_row :: [Bool] -> Int -> Point -> [[Bool]] -> Bool
-is_brick_below_shape_row row rowi (Point player_row player_col) board =
+isBrickBelowShapeRow :: [Bool] -> Int -> Point -> [[Bool]] -> Bool
+isBrickBelowShapeRow row rowi (Point playerRow playerCol) board =
     any (\(pixel, coli) -> if pixel
-                            then (board!!(player_row+rowi+1))!!(player_col+coli)
+                            then (board!!(playerRow+rowi+1))!!(playerCol+coli)
                             else False
         ) (zip row [0..])
 
-render_board :: [[Bool]] -> Player -> [[Bool]]
-render_board board player =
-    [render_row row rowi player | (row, rowi) <- zip board [0..]]
+renderBoard :: [[Bool]] -> Player -> [[Bool]]
+renderBoard board player =
+    [renderRow row rowi player | (row, rowi) <- zip board [0..]]
 
-render_row :: [Bool] -> Int -> Player -> [Bool]
-render_row row rowi player =
-    [render_pixel col coli rowi player | (col, coli) <- zip row [0..]]
+renderRow :: [Bool] -> Int -> Player -> [Bool]
+renderRow row rowi player =
+    [renderPixel col coli rowi player | (col, coli) <- zip row [0..]]
 
-render_pixel :: Bool -> Int -> Int -> Player -> Bool
-render_pixel col coli rowi (Player (Point player_row player_col) shape)
-    | in_shape_bounds = col || ((shape!!(rowi - player_row))!!(coli - player_col))
+renderPixel :: Bool -> Int -> Int -> Player -> Bool
+renderPixel col coli rowi (Player (Point playerRow playerCol) shape)
+    | inShapeBounds = col || ((shape!!(rowi - playerRow))!!(coli - playerCol))
     | otherwise = col
-    where in_shape_bounds = rowi >= player_row && rowi < player_row + (length shape)
-                         && coli >= player_col && coli < player_col + (length (shape!!0))
+    where inShapeBounds = rowi >= playerRow && rowi < playerRow + (length shape)
+                         && coli >= playerCol && coli < playerCol + (length (shape!!0))
 
-is_any_row_complete :: [[Bool]] -> Bool
-is_any_row_complete board = any (\row -> all (==True) row) board
+isAnyRowComplete :: [[Bool]] -> Bool
+isAnyRowComplete board = any (all (==True)) board
 
-scroll_board_down :: [[Bool]] -> [[Bool]]
-scroll_board_down board =
+scrollBoardDown :: [[Bool]] -> [[Bool]]
+scrollBoardDown board =
     map (\(row, i) -> if i == 0
                     then (replicate cols False)
                     else board!!(i-1))
                     (zip board [0..])
 
-parse_action :: String -> Action
-parse_action "s" = Main.Left
-parse_action "f" = Main.Right
-parse_action "e" = Main.Up
-parse_action "d" = Main.Down
-parse_action "r" = Main.Rotate
-parse_action str = None
+parseAction :: String -> Action
+parseAction "s" = Main.Left
+parseAction "f" = Main.Right
+parseAction "e" = Main.Up
+parseAction "d" = Main.Down
+parseAction "r" = Main.Rotate
+parseAction str = None
 
-move_player :: Player -> Action -> [[Bool]] -> Player
-move_player player action board
+movePlayer :: Player -> Action -> [[Bool]] -> Player
+movePlayer player action board
     | action == Main.Left || action == Main.Right =
-        let moved_player = action_map player action
-            illegal_move = is_player_out_of_bounds moved_player board || is_player_on_brick board moved_player
-        in if illegal_move then player else moved_player
-    | otherwise = action_map player action
+        let movedPlayer = actionMap player action
+            illegalMove = isPlayerOutOfBounds movedPlayer board || isPlayerOnBrick board movedPlayer
+        in if illegalMove then player else movedPlayer
+    | otherwise = actionMap player action
 
-action_map :: Player -> Action -> Player
+actionMap :: Player -> Action -> Player
 
-action_map (Player (Point row col) shape) Main.Left = Player (Point row (col-1)) shape
-action_map (Player (Point row col) shape) Main.Right = Player (Point row (col+1)) shape
-action_map (Player (Point row col) shape) Main.Up = Player (Point (row-1) col) shape
-action_map (Player (Point row col) shape) Main.Down = Player (Point (row+1) col) shape
-action_map (Player point shape) Main.Rotate = Player point (rotate_shape shape)
-action_map player None = player
+actionMap (Player (Point row col) shape) Main.Left = Player (Point row (col-1)) shape
+actionMap (Player (Point row col) shape) Main.Right = Player (Point row (col+1)) shape
+actionMap (Player (Point row col) shape) Main.Up = Player (Point (row-1) col) shape
+actionMap (Player (Point row col) shape) Main.Down = Player (Point (row+1) col) shape
+actionMap (Player point shape) Main.Rotate = Player point (rotateShape shape)
+actionMap player None = player
 
-display_board :: [[Bool]] -> String
-display_board board = foldl (\acc row -> acc ++ "\n" ++ (draw_row row)) "" board
+displayBoard :: [[Bool]] -> String
+displayBoard board = foldl (\acc row -> acc ++ "\n" ++ (drawRow row)) "" board
 
-draw_row :: [Bool] -> String
-draw_row row = foldl (\row pixel -> row ++ (if pixel == True then "O" else ".")) "" row
+drawRow :: [Bool] -> String
+drawRow row = foldl (\row pixel -> row ++ (if pixel == True then "O" else ".")) "" row
 
-is_player_on_brick :: [[Bool]] -> Player -> Bool
-is_player_on_brick board (Player player_point shape) =
-    any (\(row, rowi) -> is_player_on_brick_row row rowi player_point board) (zip shape [0..])
+isPlayerOnBrick :: [[Bool]] -> Player -> Bool
+isPlayerOnBrick board (Player playerPoint shape) =
+    any (\(row, rowi) -> isPlayerOnBrickRow row rowi playerPoint board) (zip shape [0..])
 
-is_player_on_brick_row :: [Bool] -> Int -> Point -> [[Bool]] -> Bool
-is_player_on_brick_row row rowi (Point player_row player_col) board =
+isPlayerOnBrickRow :: [Bool] -> Int -> Point -> [[Bool]] -> Bool
+isPlayerOnBrickRow row rowi (Point playerRow playerCol) board =
     any (\(pixel, coli) -> if pixel
-                            then (board!!(player_row+rowi))!!(player_col+coli)
+                            then (board!!(playerRow+rowi))!!(playerCol+coli)
                             else False
         ) (zip row [0..])
 
-is_player_out_of_bounds :: Player -> [[Bool]] -> Bool
-is_player_out_of_bounds (Player (Point row col) shape) board =
+isPlayerOutOfBounds :: Player -> [[Bool]] -> Bool
+isPlayerOutOfBounds (Player (Point row col) shape) board =
     col + length (shape!!0) > cols || col < 0
 
-rotate_shape :: [[Bool]] -> [[Bool]]
-rotate_shape shape =
-    let shape_rows = length shape
-        shape_cols = length $ shape!!0
-    in [ [ shape!!(shape_rows-1-r)!!c | r <- [0..shape_rows-1]] | c <- [0..shape_cols-1] ]
+rotateShape :: [[Bool]] -> [[Bool]]
+rotateShape shape =
+    let shapeRows = length shape
+        shapeCols = length $ shape!!0
+    in [ [ shape!!(shapeRows-1-r)!!c | r <- [0..shapeRows-1]] | c <- [0..shapeCols-1] ]
