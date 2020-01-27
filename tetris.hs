@@ -1,20 +1,18 @@
 -- todo:
--- rotate shapes
--- prevent shapes leaving board
 -- shapes constantly fall
 
 import Control.Concurrent
 import System.Random
 
-rows = 5
+rows = 8
 cols = 8
 
-data Action = Left | Right | Up | Down | None deriving Eq
+data Action = Left | Right | Up | Down | Rotate | None deriving Eq
 data Point = Point Int Int deriving Show
 data Player = Player Point [[Bool]] deriving Show
 
-shape_l = [ [True, True, True, True] ]
-shape_cap_l = [ [ True, False, False, False],
+shape_l = [ [True, True, True] ]
+shape_cap_l = [ [ True, False, False],
                 [ True, True, True, True] ]
 shape_s = [ [False, True, True ],
             [True,  True,  False ] ]
@@ -113,6 +111,7 @@ parse_action "s" = Main.Left
 parse_action "f" = Main.Right
 parse_action "e" = Main.Up
 parse_action "d" = Main.Down
+parse_action "r" = Main.Rotate
 parse_action str = None
 
 move_player :: Player -> Action -> [[Bool]] -> Player
@@ -129,6 +128,7 @@ action_map (Player (Point row col) shape) Main.Left = Player (Point row (col-1))
 action_map (Player (Point row col) shape) Main.Right = Player (Point row (col+1)) shape
 action_map (Player (Point row col) shape) Main.Up = Player (Point (row-1) col) shape
 action_map (Player (Point row col) shape) Main.Down = Player (Point (row+1) col) shape
+action_map (Player point shape) Main.Rotate = Player point (rotate_shape shape)
 action_map player None = player
 
 display_board :: [[Bool]] -> String
@@ -151,3 +151,9 @@ is_player_on_brick_row row rowi (Point player_row player_col) board =
 is_player_out_of_bounds :: Player -> [[Bool]] -> Bool
 is_player_out_of_bounds (Player (Point row col) shape) board =
     col + length (shape!!0) > cols || col < 0
+
+rotate_shape :: [[Bool]] -> [[Bool]]
+rotate_shape shape =
+    let shape_rows = length shape
+        shape_cols = length $ shape!!0
+    in [ [ shape!!(shape_rows-1-r)!!c | r <- [0..shape_rows-1]] | c <- [0..shape_cols-1] ]
